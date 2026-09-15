@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Boutique — Bénéfice Plus</title>
+<script>
+  // Minuterie indépendante : si rien n'a chargé après 15s (même si le script
+  // externe Supabase est bloqué par une connexion très lente), on affiche
+  // un message clair au lieu de rester figé sur "Chargement...".
+  window.__bpReady = false;
+  setTimeout(function () {
+    if (window.__bpReady) return;
+    var c = document.getElementById('content');
+    if (c) {
+      c.innerHTML = "Connexion lente : le chargement prend trop de temps.<br/><br/>"
+        + "<button onclick=\"window.location.reload()\" style=\"padding:12px 18px;border-radius:12px;border:none;background:#FF5A36;color:white;font-weight:700;\">Réessayer</button>";
+    }
+  }, 15000);
+</script>
+<style>
+  :root {
+    --accent: #FF5A36;
+    --accent-dark: #E14A26;
+    --bg: #FFF8F1;
+    --card: #ffffff;
+    --text: #201a17;
+    --muted: #8a7d74;
+    --border: #f1e6db;
+    --star: #FF9F43;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 18px 16px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  header .shop-identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  header .logo, header .logo-placeholder {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: none;
+    background: var(--accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  header p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .icon-btn {
+    flex: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    position: relative;
+  }
+  .icon-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+  .toolbar { padding: 10px 16px 0; }
+  .search-box {
+    background: var(--card);
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(32,26,23,0.06);
+    display: flex;
+    align-items: center;
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  .search-box input {
+    border: none;
+    outline: none;
+    flex: 1;
+    font-size: 0.95rem;
+    background: transparent;
+    color: var(--text);
+  }
+  .filters {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 14px 2px 6px;
+    scrollbar-width: none;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+  .sort-menu {
+    position: absolute;
+    top: 48px;
+    right: 0;
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(32,26,23,0.15);
+    padding: 6px;
+    z-index: 15;
+    display: none;
+    width: 190px;
+  }
+  .sort-menu.open { display: block; }
+  .sort-menu div {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .sort-menu div:hover { background: var(--bg); }
+  .sort-menu div.selected { color: var(--accent-dark); font-weight: 700; }
+
+  main { padding: 6px 16px 40px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(32,26,23,0.06);
+    cursor: pointer;
+  }
+  .card .img-wrap { position: relative; }
+  .card img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    background: #f1e6db;
+    display: block;
+  }
+  .card .no-photo {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #f1e6db;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .badge-discount {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: var(--accent);
+    color: white;
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 4px 9px;
+    border-radius: 999px;
+  }
+  .badge-stock {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(32,26,23,0.72);
+    color: white;
+    font-size: 0.68rem;
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+  .badge-stock.out { background: #b3261e; }
+  .fav-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    border: none;
+  }
+  .fav-btn.active { color: var(--accent); }
+  .card-body { padding: 10px 12px 12px; }
+  .card-body .name {
+    font-weight: 700;
+    font-size: 0.92rem;
+    line-height: 1.25;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .price-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .price-row .prices { display: flex; flex-direction: column; }
+  .price-row .now { font-weight: 800; color: var(--text); font-size: 1rem; }
+  .price-row .old { font-size: 0.78rem; color: var(--muted); text-decoration: line-through; }
+  .cart-btn {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+  }
+  .cart-btn:disabled { background: #ddd0c4; }
+  .wa-btn { background: #25D366; }
+  .wa-btn:disabled { background: #ddd0c4; }
+
+  .state { text-align: center; color: var(--muted); padding: 60px 16px; }
+
+  /* ---- Fiche produit plein écran ---- */
+  .sheet-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 30;
+    overflow-y: auto;
+    display: none;
+  }
+  .sheet-overlay.open { display: block; }
+  .sheet-topbar {
+    position: sticky;
+    top: 0;
+    background: rgba(255,248,241,0.92);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 12px;
+    z-index: 2;
+  }
+  .sheet-topbar .back { color: var(--accent-dark); font-weight: 700; display: flex; align-items: center; gap: 4px; background: none; border: none; font-size: 0.95rem; }
+  .sheet-topbar .title { font-weight: 700; }
+  .sheet-topbar .right-icons { display: flex; gap: 10px; }
+  .sheet-img-wrap { padding: 0 12px; }
+  .sheet-img-wrap img, .sheet-img-wrap .no-photo {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 20px;
+    background: #f1e6db;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+  }
+  .sheet-body { padding: 18px 16px 140px; }
+  .sheet-body h2 { margin: 0 0 8px; font-size: 1.3rem; }
+  .sheet-price-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 18px; }
+  .sheet-price-row .now { font-size: 1.5rem; font-weight: 800; color: var(--text); }
+  .sheet-price-row .old { font-size: 1rem; color: var(--muted); text-decoration: line-through; }
+  .sheet-price-row .badge-discount { position: static; }
+
+  .option-label { font-weight: 700; font-size: 0.9rem; margin: 18px 0 8px; }
+  .option-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .option-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px 8px 8px;
+    border-radius: 999px;
+    border: 1.5px solid var(--border);
+    background: var(--card);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .option-pill.selected { border-color: var(--accent); color: var(--accent-dark); }
+  .option-pill .swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.15);
+  }
+
+  .info-card {
+    background: var(--card);
+    border-radius: 16px;
+    margin-top: 20px;
+    overflow: hidden;
+  }
+  .info-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.88rem;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-row .ic { font-size: 1.05rem; }
+
+  .field-label { display: block; font-size: 0.85rem; color: var(--muted); margin: 16px 0 6px; font-weight: 600; }
+  .field-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    font-size: 0.95rem;
+    background: var(--card);
+  }
+  .qty-row { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
+  .qty-btn {
+    width: 38px; height: 38px; border-radius: 10px; border: 1.5px solid var(--border);
+    background: var(--card); font-size: 1.1rem; font-weight: 700; color: var(--text);
+  }
+  .qty-value { font-size: 1.05rem; font-weight: 700; min-width: 24px; text-align: center; }
+
+  .sheet-cta {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: var(--card);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    box-shadow: 0 -6px 20px rgba(32,26,23,0.08);
+    display: flex;
+    gap: 10px;
+    z-index: 31;
+  }
+  .sheet-cta.hidden { display: none; }
+  .sheet-cta button {
+    flex: 1;
+    padding: 14px;
+    border-radius: 14px;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .sheet-cta .btn-order { background: #25D366; color: white; }
+  .sheet-cta button:disabled { opacity: 0.5; }
+
+  .toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #201a17;
+    color: white;
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    z-index: 40;
+    max-width: 90%;
+    text-align: center;
+  }
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 6px 20px 30px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="shop-identity">
+    <div id="shop-logo-wrap"><div class="logo-placeholder">?</div></div>
+    <div style="min-width:0">
+      <h1 id="shop-name">Boutique</h1>
+      <p id="shop-desc"></p>
+    </div>
+  </div>
+  <div style="position:relative">
+    <button class="icon-btn" id="sort-btn">⇅</button>
+    <div class="sort-menu" id="sort-menu">
+      <div data-sort="recent" class="selected">Plus récents</div>
+      <div data-sort="price-asc">Prix croissant</div>
+      <div data-sort="price-desc">Prix décroissant</div>
+    </div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="search-box">
+    <span>🔍</span>
+    <input id="search-input" type="text" placeholder="Rechercher un produit..." />
+    <button class="icon-btn" id="fav-filter-btn" style="width:32px;height:32px;font-size:0.95rem;">♡</button>
+  </div>
+  <div class="filters" id="filters"></div>
+</div>
+
+<main>
+  <div id="content" class="state">Chargement de la boutique…</div>
+</main>
+
+<footer>Propulsé par Bénéfice Plus</footer>
+
+<!-- Fiche produit plein écran -->
+<div class="sheet-overlay" id="sheet-overlay">
+  <div class="sheet-topbar">
+    <button class="back" id="sheet-back">‹ Boutique</button>
+    <div class="title">Fiche produit</div>
+    <div class="right-icons">
+      <button class="icon-btn" id="sheet-share" style="width:34px;height:34px;">↗</button>
+      <button class="icon-btn" id="sheet-fav" style="width:34px;height:34px;">♡</button>
+    </div>
+  </div>
+  <div class="sheet-img-wrap" id="sheet-img-wrap"></div>
+  <div class="sheet-body" id="sheet-body"></div>
+</div>
+<div class="sheet-cta hidden" id="sheet-cta">
+  <button class="btn-order" id="btn-order">💬 Contacter sur WhatsApp</button>
+</div>
+
+<script>
+  window.__bpReady = true;
+  // ⚠️ Mêmes valeurs que dans lib/main.dart de l'application Flutter.
+  const SUPABASE_URL = 'https://gldxzpqyyukqwjzpsmas.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdsZHh6cHF5eXVrcXdqenBzbWFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3MzA4MTQsImV4cCI6MjEwNDMwNjgxNH0.dc4-riViHuj1mx1RCcbmJTMIxNy6cszuyyVss3b752k';
+
+  // Requêtes directes à l'API Supabase (pas de librairie externe : plus rapide
+  // et plus fiable sur les connexions lentes, qui bloquaient au chargement du CDN).
+  async function supabaseGet(path) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
+    });
+    if (!res.ok) { const err = new Error('HTTP ' + res.status); err.status = res.status; throw err; }
+    return res.json();
+  }
+
+  const CATEGORY_LABELS = { homme: 'Homme', femme: 'Femme', enfant: 'Enfant', autre: 'Autre' };
+  const CURRENCY_SYMBOLS = { USD: '$', CDF: 'FC', EUR: '€', XAF: 'FCFA' };
+  function formatPrice(amount, currency) {
+    const symbol = CURRENCY_SYMBOLS[currency] || currency;
+    return `${symbol} ${Number(amount).toFixed(2)}`;
+  }
+
+  // Couleurs approximatives pour les pastilles (best-effort sur le nom saisi par le commerçant).
+  const COLOR_SWATCHES = {
+    noir: '#1a1a1a', blanc: '#ffffff', rouge: '#e5372a', bleu: '#2563eb', vert: '#16a34a',
+    jaune: '#eab308', orange: '#f97316', rose: '#ec4899', gris: '#9ca3af', marron: '#7c4a2d',
+    beige: '#e8d9c4', violet: '#8b5cf6', corail: '#ff7f6b', doré: '#caa14b', argenté: '#c0c0c0',
+  };
+  function swatchColor(name) {
+    return COLOR_SWATCHES[(name || '').trim().toLowerCase()] || '#d8d8d8';
+  }
+
+  let ALL_PRODUCTS = [];
+  let SHOP = null;
+  let activeCategory = 'tous';
+  let searchTerm = '';
+  let sortMode = 'recent';
+  let favOnly = false;
+  let currentProduct = null;
+  let selectedSize = null;
+  let selectedColor = null;
+
+  function getFavorites() {
+    try { return JSON.parse(localStorage.getItem('bp_favorites') || '[]'); } catch { return []; }
+  }
+  function toggleFavorite(id) {
+    const favs = getFavorites();
+    const idx = favs.indexOf(id);
+    if (idx >= 0) favs.splice(idx, 1); else favs.push(id);
+    localStorage.setItem('bp_favorites', JSON.stringify(favs));
+    return favs.includes(id);
+  }
+  function isFavorite(id) { return getFavorites().includes(id); }
+
+  function getSlugFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('slug')) return params.get('slug');
+    const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
+    return path || null;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str ?? '';
+    return div.innerHTML;
+  }
+
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3500);
+  }
+
+  function stockInfo(product) {
+    if (product.stock_quantity === null || product.stock_quantity === undefined) return null;
+    if (product.stock_quantity <= 0) return { text: 'Rupture de stock', out: true };
+    return { text: `${product.stock_quantity} restant(s)`, out: false };
+  }
+
+  function buildWhatsappLink(shop, product, details) {
+    details = details || {};
+    if (!shop.whatsapp_number) return null;
+    const number = shop.whatsapp_number.replace(/[^\d]/g, '');
+    const lines = [
+      `Bonjour, ce produit m'intéresse :`,
+      `• Produit : ${product.name}`,
+      `• Prix : ${formatPrice(product.selling_price, product.currency)}`,
+    ];
+    if (details.size) lines.push(`• Taille souhaitée : ${details.size}`);
+    if (details.color) lines.push(`• Couleur souhaitée : ${details.color}`);
+    if (details.quantity && details.quantity > 1) lines.push(`• Quantité : ${details.quantity}`);
+    for (const [q, a] of Object.entries(details.customAnswers || {})) {
+      if (a) lines.push(`• ${q} : ${a}`);
+    }
+    lines.push(`• Voir le produit : ${window.location.origin}${window.location.pathname}?produit=${encodeURIComponent(product.id)}`);
+    return `https://wa.me/${number}?text=${encodeURIComponent(lines.join('\n'))}`;
+  }
+
+  // ---------------- Grille produits ----------------
+
+  function renderFilters() {
+    const cats = new Set(ALL_PRODUCTS.map((p) => p.category).filter(Boolean));
+    const filtersEl = document.getElementById('filters');
+    const options = [['tous', 'Tout'], ...[...cats].map((c) => [c, CATEGORY_LABELS[c] || c])];
+    filtersEl.innerHTML = options.map(([value, label]) =>
+      `<div class="chip${activeCategory === value ? ' active' : ''}" data-cat="${value}">${escapeHtml(label)}</div>`
+    ).join('');
+    filtersEl.querySelectorAll('.chip').forEach((chip) => {
+      chip.onclick = () => {
+        activeCategory = chip.getAttribute('data-cat');
+        renderFilters();
+        renderProducts();
+      };
+    });
+  }
+
+  function filteredProducts() {
+    let list = ALL_PRODUCTS.filter((p) => {
+      const matchesCat = activeCategory === 'tous' || p.category === activeCategory;
+      const matchesSearch = !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFav = !favOnly || isFavorite(p.id);
+      return matchesCat && matchesSearch && matchesFav;
+    });
+    if (sortMode === 'price-asc') list = list.slice().sort((a, b) => a.selling_price - b.selling_price);
+    if (sortMode === 'price-desc') list = list.slice().sort((a, b) => b.selling_price - a.selling_price);
+    return list;
+  }
+
+  function renderProducts() {
+    const content = document.getElementById('content');
+    const products = filteredProducts();
+
+    if (ALL_PRODUCTS.length === 0) {
+      content.className = 'state';
+      content.textContent = "Cette boutique n'a pas encore de produits.";
+      return;
+    }
+    if (products.length === 0) {
+      content.className = 'state';
+      content.textContent = favOnly ? 'Aucun favori pour le moment.' : 'Aucun produit ne correspond à votre recherche.';
+      return;
+    }
+
+    content.className = 'grid';
+    content.innerHTML = products.map((p) => {
+      const stock = stockInfo(p);
+      const discount = (p.compare_at_price && p.compare_at_price > p.selling_price)
+        ? Math.round(((p.compare_at_price - p.selling_price) / p.compare_at_price) * 100)
+        : null;
+      const fav = isFavorite(p.id);
+      return `
+      <div class="card" data-id="${p.id}">
+        <div class="img-wrap">
+          ${p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="${escapeHtml(p.name)}" />` : `<div class="no-photo">Pas de photo</div>`}
+          ${discount ? `<div class="badge-discount">-${discount}%</div>` : ''}
+          <button class="fav-btn${fav ? ' active' : ''}" data-fav-id="${p.id}">${fav ? '♥' : '♡'}</button>
+          ${stock ? `<div class="badge-stock${stock.out ? ' out' : ''}">${stock.text}</div>` : ''}
+        </div>
+        <div class="card-body">
+          <div class="name">${escapeHtml(p.name)}</div>
+          <div class="price-row">
+            <div class="prices">
+              <span class="now">${formatPrice(p.selling_price, p.currency)}</span>
+              ${discount ? `<span class="old">${formatPrice(p.compare_at_price, p.currency)}</span>` : ''}
+            </div>
+            <button class="cart-btn wa-btn" data-id="${p.id}" ${stock && stock.out ? 'disabled' : ''}>💬</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    content.querySelectorAll('.card').forEach((card) => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.fav-btn')) return;
+        const product = products.find((p) => p.id === card.getAttribute('data-id'));
+        if (product) openProductSheet(product);
+      });
+    });
+    content.querySelectorAll('.fav-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-fav-id');
+        const nowFav = toggleFavorite(id);
+        btn.classList.toggle('active', nowFav);
+        btn.textContent = nowFav ? '♥' : '♡';
+      });
+    });
+    content.querySelectorAll('.cart-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const product = products.find((p) => p.id === btn.getAttribute('data-id'));
+        if (!product) return;
+        if (!SHOP || !SHOP.whatsapp_number) { showToast("Ce commerçant n'a pas encore activé WhatsApp sur sa boutique."); return; }
+        const size = (product.sizes || [])[0] || null;
+        const color = (product.colors || [])[0] || null;
+        const link = buildWhatsappLink(SHOP, product, { size, color, quantity: 1, customAnswers: {} });
+        if (link) window.open(link, '_blank');
+      });
+    });
+  }
+
+  document.getElementById('search-input').addEventListener('input', (e) => {
+    searchTerm = e.target.value;
+    renderProducts();
+  });
+  document.getElementById('fav-filter-btn').addEventListener('click', () => {
+    favOnly = !favOnly;
+    const btn = document.getElementById('fav-filter-btn');
+    btn.classList.toggle('active', favOnly);
+    btn.textContent = favOnly ? '♥' : '♡';
+    renderProducts();
+  });
+  document.getElementById('sort-btn').addEventListener('click', () => {
+    document.getElementById('sort-menu').classList.toggle('open');
+  });
+  document.getElementById('sort-menu').querySelectorAll('div').forEach((item) => {
+    item.addEventListener('click', () => {
+      sortMode = item.getAttribute('data-sort');
+      document.querySelectorAll('#sort-menu div').forEach((d) => d.classList.remove('selected'));
+      item.classList.add('selected');
+      document.getElementById('sort-menu').classList.remove('open');
+      renderProducts();
+    });
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#sort-btn') && !e.target.closest('#sort-menu')) {
+      document.getElementById('sort-menu').classList.remove('open');
+    }
+  });
+
+  // ---------------- Fiche produit plein écran ----------------
+
+  function openProductSheet(product) {
+    currentProduct = product;
+    selectedSize = (product.sizes || [])[0] || null;
+    selectedColor = (product.colors || [])[0] || null;
+
+    const overlay = document.getElementById('sheet-overlay');
+    const imgWrap = document.getElementById('sheet-img-wrap');
+    const body = document.getElementById('sheet-body');
+    const cta = document.getElementById('sheet-cta');
+
+    imgWrap.innerHTML = product.photo_url
+      ? `<img src="${escapeHtml(product.photo_url)}" alt="${escapeHtml(product.name)}" />`
+      : `<div class="no-photo">Pas de photo</div>`;
+
+    const discount = (product.compare_at_price && product.compare_at_price > product.selling_price)
+      ? Math.round(((product.compare_at_price - product.selling_price) / product.compare_at_price) * 100)
+      : null;
+
+    const sizes = product.sizes || [];
+    const colors = product.colors || [];
+    const customFields = product.custom_fields || [];
+    const stock = stockInfo(product);
+
+    body.innerHTML = `
+      <h2>${escapeHtml(product.name)}</h2>
+      <div class="sheet-price-row">
+        <span class="now">${formatPrice(product.selling_price, product.currency)}</span>
+        ${discount ? `<span class="old">${formatPrice(product.compare_at_price, product.currency)}</span><span class="badge-discount">-${discount}%</span>` : ''}
+      </div>
+
+      ${colors.length ? `
+        <div class="option-label">Couleur</div>
+        <div class="option-row" data-role="colors">
+          ${colors.map((c, i) => `
+            <div class="option-pill${i === 0 ? ' selected' : ''}" data-value="${escapeHtml(c)}">
+              <span class="swatch" style="background:${swatchColor(c)}"></span>${escapeHtml(c)}
+            </div>`).join('')}
+        </div>` : ''}
+
+      ${sizes.length ? `
+        <div class="option-label">Taille</div>
+        <div class="option-row" data-role="sizes">
+          ${sizes.map((s, i) => `<div class="option-pill${i === 0 ? ' selected' : ''}" data-value="${escapeHtml(s)}">${escapeHtml(s)}</div>`).join('')}
+        </div>` : ''}
+
+      <div class="info-card">
+        ${product.category ? `<div class="info-row"><span class="ic">🏷️</span> Catégorie : ${escapeHtml(CATEGORY_LABELS[product.category] || product.category)}</div>` : ''}
+        <div class="info-row"><span class="ic">📦</span> ${stock ? stock.text : 'Stock disponible'}</div>
+        ${SHOP && SHOP.whatsapp_number ? `<div class="info-row"><span class="ic">💬</span> Réponse rapide sur WhatsApp après commande</div>` : ''}
+      </div>
+
+      <div class="option-label">Quantité</div>
+      <div class="qty-row">
+        <button class="qty-btn" id="qty-minus">−</button>
+        <span class="qty-value" id="qty-value">1</span>
+        <button class="qty-btn" id="qty-plus">+</button>
+      </div>
+
+      ${customFields.map((q) => `
+        <label class="field-label">${escapeHtml(q)}</label>
+        <input class="field-input custom-field" data-question="${escapeHtml(q)}" type="text" placeholder="Votre réponse" />
+      `).join('')}
+    `;
+
+    body.querySelectorAll('.option-row[data-role="colors"] .option-pill').forEach((el) => {
+      el.onclick = () => {
+        body.querySelectorAll('.option-row[data-role="colors"] .option-pill').forEach((c) => c.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedColor = el.getAttribute('data-value');
+      };
+    });
+    body.querySelectorAll('.option-row[data-role="sizes"] .option-pill').forEach((el) => {
+      el.onclick = () => {
+        body.querySelectorAll('.option-row[data-role="sizes"] .option-pill').forEach((c) => c.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedSize = el.getAttribute('data-value');
+      };
+    });
+
+    let qty = 1;
+    const qtyValueEl = body.querySelector('#qty-value');
+    body.querySelector('#qty-minus').onclick = () => { qty = Math.max(1, qty - 1); qtyValueEl.textContent = qty; };
+    body.querySelector('#qty-plus').onclick = () => {
+      if (stock && qty >= product.stock_quantity) { showToast(`Seulement ${product.stock_quantity} disponible(s).`); return; }
+      qty += 1; qtyValueEl.textContent = qty;
+    };
+
+    document.getElementById('sheet-fav').textContent = isFavorite(product.id) ? '♥' : '♡';
+    document.getElementById('sheet-fav').classList.toggle('active', isFavorite(product.id));
+
+    const canOrder = !(stock && stock.out);
+    cta.classList.toggle('hidden', !canOrder);
+    document.getElementById('btn-order').disabled = false;
+    document.getElementById('btn-order').textContent = '💬 Contacter sur WhatsApp';
+
+    window.__getOrderQty = () => qty;
+    overlay.classList.add('open');
+    overlay.scrollTop = 0;
+    window.scrollTo(0, 0);
+  }
+
+  function closeProductSheet() {
+    document.getElementById('sheet-overlay').classList.remove('open');
+    currentProduct = null;
+  }
+
+  document.getElementById('sheet-back').onclick = closeProductSheet;
+  document.getElementById('sheet-fav').onclick = () => {
+    if (!currentProduct) return;
+    const nowFav = toggleFavorite(currentProduct.id);
+    document.getElementById('sheet-fav').textContent = nowFav ? '♥' : '♡';
+    document.getElementById('sheet-fav').classList.toggle('active', nowFav);
+  };
+  document.getElementById('sheet-share').onclick = async () => {
+    if (!currentProduct) return;
+    const url = window.location.href;
+    if (navigator.share) {
+      try { await navigator.share({ title: currentProduct.name, url }); } catch {}
+    } else {
+      try { await navigator.clipboard.writeText(url); showToast('Lien copié !'); } catch {}
+    }
+  };
+
+  function contactOnWhatsapp() {
+    const product = currentProduct;
+    if (!product) return;
+    if (!SHOP || !SHOP.whatsapp_number) { showToast("Ce commerçant n'a pas encore activé WhatsApp sur sa boutique."); return; }
+
+    const body = document.getElementById('sheet-body');
+    const qty = window.__getOrderQty ? window.__getOrderQty() : 1;
+    const customAnswers = {};
+    body.querySelectorAll('.custom-field').forEach((input) => {
+      customAnswers[input.getAttribute('data-question')] = input.value.trim();
+    });
+
+    const link = buildWhatsappLink(SHOP, product, {
+      size: selectedSize, color: selectedColor, quantity: qty, customAnswers,
+    });
+    closeProductSheet();
+    if (link) window.open(link, '_blank');
+  }
+
+  document.getElementById('btn-order').onclick = contactOnWhatsapp;
+
+  // ---------------- Chargement ----------------
+
+  function withTimeout(promise, ms) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+    ]);
+  }
+
+  async function loadShop() {
+    const slug = getSlugFromUrl();
+    const content = document.getElementById('content');
+
+    try {
+      if (!slug) { content.textContent = 'Lien de boutique invalide.'; return; }
+
+      const shops = await withTimeout(
+        supabaseGet(`virtual_shops?shop_slug=eq.${encodeURIComponent(slug)}&is_published=eq.true&select=*`),
+        15000
+      );
+      const shop = shops && shops[0];
+
+      if (!shop) {
+        document.getElementById('shop-name').textContent = 'Boutique introuvable';
+        content.textContent = "Cette boutique n'existe pas ou n'est plus publiée.";
+        return;
+      }
+
+      SHOP = shop;
+      document.getElementById('shop-name').textContent = shop.shop_name;
+      document.getElementById('shop-desc').textContent = shop.description || '';
+      document.title = `${shop.shop_name} — Boutique`;
+
+      const logoWrap = document.getElementById('shop-logo-wrap');
+      logoWrap.innerHTML = shop.logo_url
+        ? `<img class="logo" src="${escapeHtml(shop.logo_url)}" alt="logo" />`
+        : `<div class="logo-placeholder">${escapeHtml((shop.shop_name || '?').charAt(0).toUpperCase())}</div>`;
+
+      const products = await withTimeout(
+        supabaseGet(`products?merchant_id=eq.${encodeURIComponent(shop.merchant_id)}&is_shop_visible=eq.true&order=created_at.desc&select=*`),
+        15000
+      );
+
+      ALL_PRODUCTS = products || [];
+      renderFilters();
+      renderProducts();
+
+      const productId = new URLSearchParams(window.location.search).get('produit');
+      if (productId) {
+        const target = ALL_PRODUCTS.find((p) => p.id === productId);
+        if (target) openProductSheet(target);
+      }
+    } catch (e) {
+      console.error(e);
+      const timedOut = e && e.message === 'timeout';
+      content.innerHTML = timedOut
+        ? "Connexion lente : le chargement prend trop de temps.<br/><br/><button onclick=\"window.location.reload()\" style=\"padding:12px 18px;border-radius:12px;border:none;background:var(--accent);color:white;font-weight:700;\">Réessayer</button>"
+        : "Une erreur est survenue lors du chargement de la boutique. Vérifiez votre connexion internet.<br/><br/><button onclick=\"window.location.reload()\" style=\"padding:12px 18px;border-radius:12px;border:none;background:var(--accent);color:white;font-weight:700;\">Réessayer</button>";
+    }
+  }
+
+  loadShop();
+</script>
+
+</body>
+</html>
